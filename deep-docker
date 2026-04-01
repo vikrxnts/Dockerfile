@@ -1,0 +1,141 @@
+Deep Docker 
+
+### Container Creation Flow
+
+When you type docker run nginx, Docker:
+
+Downloads the Nginx files from the internet.
+
+Creates the "invisible box" (Namespaces and Cgroups) we talked about.
+
+Sets up the networking (IP addresses and ports).
+
+Finally, it hands the Nginx program over to the host's kernel and says, "Here you go, run this inside the box I just built."
+
+
+
+### Explain container is Process
+
+Docker uses two native Linux features to build an invisible, soundproof box around that specific process
+
+# Namespace = Security and Isolation ( wall )
+# Control group = Resource Limits ( leach )
+
+Namespaces (The Walls): This tells the process, "You are the only thing running on this computer." It hides all other processes, networks, and files on your host machine from the container. As far as that process knows, it is PID 1 (Process ID 1) and it is completely alone.
+
+Namespaces List : 
+   
+                1) PID namespace ( hide all other process ) # container itself and claims it is PID 1. It has no idea that outside the wall, the host sees it as PID 4521         
+                alongside hundreds of other host processes.
+
+                2) MNT namespace ( hide host's hard drive ) # This gives the container its own isolated file system && When the container looks at the / (root) directory, it only sees the files that Docker put there. It cannot see your host computer's /home or /Desktop folders unless you specifically punch a hole in the wall (using a Volume or Bind Mount! )
+
+                3) NET namespace ( hide host network and IP ) # The container gets its own private, fake network card (eth0), its own private IP address (like 172.17.0.2), and its own set of ports. This is why you can run two separate containers that both use Port 80—they are in different network namespaces, so they don't clash
+
+                4) UTS (UNIX Timesharing System) Namespace ( hide computer's name ) # This allows the container to have its own Hostname and hide host computer name
+
+                5) USER namespace ( hide host user Account ) # This is a brilliant security feature. A process inside the container can think it is the absolute root (Admin) user. But outside the wall, on the host machine, the kernel treats it as a normal, powerless user
+
+                6) IPC -Inter-Process Communication Namespace ( Shared Memory ) # 
+ 
+
+Cgroups (The Leash): This stands for "Control Groups." It tells the process, "You are only allowed to use 2GB of RAM and 10% of the CPU." This stops the process from accidentally crashing your whole computer.
+
+> Control Group List :
+      
+                1) Resource Limit   # So its says dont use ram more than 512MB if you use kill it
+
+                2) Prioritization   # you can step priority in multiple container     # usecase - if CPU use 100% cgroup tell give 80% to container 1 not container 2
+
+                3) Accounting       # they measure how much CPU, Ram, network utilization is done   ( docker stats )
+
+                4) Control          # its control 
+
+
+when you create a container a process will run the container 
+
+
+## Utilization
+
+when you run any docker container it will utilized 100% Cpu & 100% Memory it the container need 
+
+but you will add limit
+
+docker run -itd --name test --memory="512m" nginx    # add memory limit
+
+docker run -itd --name test --cpu="1.5" nginx        # Add cpu core limit 
+
+
+
+# docker inspect container_ID | grep Pid  
+
+you see a pid ( ex - 112233 )
+
+ps -ef | grep 112233
+
+< Output >
+
+root      243720  243695  0 10:38 pts/0    00:00:00 nginx: master process nginx -g daemon off;
+101       243804  243720  0 10:38 pts/0    00:00:00 nginx: worker process
+
+If you Observe their is not docker name in this
+
+so basically docker give pkg file config and basic things 
+
+and tell host machine linux kernal to run this process in Invisible BOX 
+
+# Container process is managed / run by Host Machine Linux kernal 
+
+
+### systemD is not present
+
+Error # Failed to get D-Bus connection: Operation not permitted    OS - .rpm
+
+CentOS or RHEL server, when they boot up is the systemd process (PID 1). its acts as gurad manager that start stop all services in background
+Docker containers are not full Virtual Machines They do not "boot up. 
+
+A container is designed to run one single foreground process as its PID 1.
+there is no background system manager running, systemctl has nothing to talk to (hence the missing D-Bus connection).
+
+1st process of every container is the application service 
+if the 1st process got kill the container is exited (# STOP WORKING)
+
+
+# to start servie
+
+to start service = /usr/sbin/httpd -DFOREGROUND    - .rpm os
+to stop  = kill process 
+
+
+# What for .deb os like Ubuntu
+
+
+# service nginx start in an Ubuntu container:
+
+The service command checks: "Is systemd running right now?"
+
+It realizes: "No, we are inside a container."
+
+Instead of crashing, it falls back to the legacy method (SysVinit). It looks inside the /etc/init.d/ folder for a plain old bash script named nginx and simply runs it in the background.
+
+your application is PID 1
+
+The PPID (Parent Process ID) is 0. This means the process was started directly by the Docker Engine (the host), not by another process inside the container.
+
+daemon off  -  foreground process         # In container
+daemon on   -  background process         # In Server
+
+# /-------
+
+
+# Port Expose
+
+You cannot "expose" a port from inside a running container.
+In Docker, networking (ports) is handled by the host's kernel before the container even starts. Once the container is running, the "walls" are already built. You can't reach out and punch a hole through to the host's network from the inside.
+
+### containerd
+
+What is containerd?
+containerd (pronounced "container-dee") is an industry-standard container runtime. It is a background service (daemon) that runs on your operating system and manages the complete lifecycle of a container on that specific machine.
+
+While tools like Kubernetes manage where containers go across a whole cluster of machines, containerd is the software on the ground that actually makes the containers run on the individual servers
