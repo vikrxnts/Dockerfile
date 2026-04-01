@@ -1,0 +1,442 @@
+### Docker Basic Cmd
+
+```bash
+# exit container without geos to Exited state
+
+container ID - 64 digit
+
+ctrl + p + q 
+
+  docker start $( docker ps -a -q ) 
+  docker start $(docker ps -a -f "status=exited" -q)      
+
+# Environment Variable
+
+    docker run -d --name webserver -e name='vikrant khandalkar' nginx      # to Add Environment Variable
+
+# Port Binding      ( Bind host machine to container machine port )
+
+    local machine port to Container Port binding       # Request goes to local then goes container using
+    
+  -p 8080:80    local 8080 : container 80
+
+# Check Container Logs
+
+    docker logs Container_ID // Container_name 
+    
+# Check All about Container 
+    
+    docker inspect container_ID // Container_name
+
+# Docker Exited
+
+   docker run -d -it --name test img_id // Name echo 'hello'   # run container in interactive mode ) // give dummy task ( echo 'test' )
+
+# Check Process
+  
+   docker top container_ip // Container_name
+   
+# Check Cpu and Memory Utilization of Containers
+
+   docker stats                         # For All 
+   docker stats container_ID            # for Specific
+   
+# Prune ( unused things will remove )
+
+   docker container prune         # Remove Exited // Stop Container
+   
+   docker image prune -a          # Remove Images not used by Running Container
+   docker image prune             # Remove all images don't have a name or a tag
+   
+   docker volume prune            # Remove All local volumes not used by at least one container
+   docker network prune           # Remove All networks not used by at least one container
+   
+```
+
+```bash
+
+# Export container to tar
+
+    docker export container_id // nama > file.tar    # export container to tar 
+                                                             
+# Import
+  
+    docker import file.tar image_name 
+   
+
+# To run a container with that image
+
+    docker run -itd --name custom image_ID/name /bin/bash        - why /bin/bash to give a entrypoint   
+
+
+#  to check entrypoint 
+    docker inspect image_id | grep -A 10 'Config'
+    
+<Output>
+ "Config": {
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "/bin/bash"
+            ],    
+    
+#   ( Docker doesn't know what process to start inside the container )    
+```
+
+```bash
+# Create Container to image
+
+  docker commit container_id/name custome_image_name
+  
+   - author "Vikrant Khandlkar"       # Other Options
+   - m "This is Commit"
+   
+# Create Images to Tar
+
+  docker save -o cus_image.tar image_ID    
+```
+  docker load -i cus_img.tar
+
+```bash
+# Diff
+
+    docker diff container_ID      # show change in container file in image file 
+                                  # It lists every file or directory that has been changed since the container started. 
+                                  #  A - Add  //   C  - Changed   //   D - Deleted
+                                    
+# Copy ( dir / File ) Local to Container
+
+    docker cp dir/file container_id:/path    # No need to use -r for Directory                                                                                                                                                                                        
+```
+
+# Tag
+
+    docker tag image_id/Name d_hub-username/repo-name/custom-img:tag
+
+ # to Push image to docker-hub
+
+    docker push image-dockerhub-detail- image name   
+
+# Docker image Layers Architecture  
+
+```bash
+ containers
+     |
+  Layer 2
+     |
+  Layer 1
+     |
+  Base Layer
+  
+ # Every cmd in Dockerfile run in diff container while  
+
+  
+ # Base Layer is small size linux base image 
+ # when we create a container a new writable layer called  ( container layer ) is added top the table
+ # Only base layer is common other are diff
+ 
+Base_Layer and Layer (1..X) this layer is immutabe(can't change) and its readonly 
+only Container_layer is **Writable_Layer**
+```
+
+### Skill
+
+```bash
+ c="my_container"; docker stop "$c" && docker rm "$c"         - Make Variable in cmd
+```
+
+
+
+## Diff In Docker Save and Docker Export 
+ 
+  
+# Save 
+
+Target   - container to Images
+output   - Full Image ( Layers, History, Metadata )
+Best for - Moving images between hosts/registries
+
+Note = Layer Preservation: It keeps every single layer and the history of the image intact.
+       Metadata Retention: All original configurations (ports, volumes, entry points) are preserved.
+
+
+# Import
+
+Target   - Container to Tar
+Output   - A single flat filesystem (no history)
+Best For - Creating a "snapshot" of a container's current state
+
+Note = Docker takes the current state of a container's filesystem and zips it up.
+       Data Loss: You lose the metadata defined in the original Dockerfile, such as ENV variables, EXPOSE ports, and the ENTRYPOINT/CMD
+
+
+
+## ------------------------------------------
+
+
+Docker File 
+
+
+FROM container_image:tag        # Get Container img
+RUN  mkdir folder1.             # Which cmd we want to run 
+
+LABEL name="Vikrant Khandalkar"    # Just info  // To Check inspect image 
+
+ENV name="vikrant"     # Best for environment
+ENV pass dex            # to Set Environment Variable
+
+
+WORKDIR  /tmp       # to change the Working Dir
+
+USER vikrxnt    # To Switch/change the user 
+
+COPY local-path container-path         #  to copy File / Dir to local to container machine
+
+Add local-path.tar container-path       # Same as Copy but when we use for compress files it auto extract file and extracted files theit ++ ALSO FOR URL 
+
+CMD ["/usr/sbin/httpd"]                 # One time use in docker file ( use - to run any cmd )
+
+EXPOSE 80                # To on port 
+EXPOSE 22 80             # For multiple 
+
+ENTRYPOINT [ " any_cmd" ]        # When container run / start this cmd will be run 
+
+
+ARG // SHELL // VOLUME // HEALTHCHECK // ONBUILD //  STOPSIGNAL 
+
+
+
+
+############### ->   VOLUME 
+
+
+to persist the data of container user volume 
+ex - if your Container die your data will loss so use volume to persit your data
+
+Lecture 1 
+
+
+some docker create a volume automatically ( docker inpect image ( check volume section )) so this volume created on your host machine 
+basically the container application data stored in that volume 
+
+-if container remove the volume is still present so you can mount this volume to another container while Creating
+
+-v volume_ID / volume_name:/var/lib/mysql   - this is path where inside the container the volume mount 
+
+
+# docker inspect image_id                  -   To check Volume section to image creating volume or not
+
+# docker ps -a -f "volume-volume_id"       -   TO check volume mount to which container
+
+# docker system df              - it show all data usage of container volume images and caches
+# docker system df -v      # in more depth
+
+
+NOTES :-
+
+The Limit: You can store as much data as the free space available on your host’s physical hard drive (specifically the partition where /var/lib/docker resides).
+
+( you can connect volume to mutiple container )
+volumes are designed to be independent of the container lifecycle, you can absolutely have multiple containers reading from and writing to the same volume at the same time.
+# No Limit to attach the same volume to multiple container here 
+
+# take backup of volume
+
+ docker run --rm -v vol-test:/tmp -v $(pwd):/backup alpine tar cvf /backup/my-backup.tar /tmp	# its creating container and remove it 
+                                                                                                # mount vol-test to tmp and pwd tp backup // use tar to create backup in backup-dir
+
+# why we create another container to take backup of volume
+    - 1) some time container dont have tar cmd 
+      2) if your backup is heavy your container have add extra process and use high consumpition
+      3) dont get any permission issue 
+
+
+
+# Bind Mounting
+
+
+-v /tmp/base.conf:/etc/nginx/conf.f/nginx.conf       # to mount file
+
+-v /tmp/folder1:/etc/nginx      # to mount directory
+
+-v anyname_ifNot_give-path:/etc/nginx        # auto volume created and mount it
+
+
+
+############### ->   NETWORK
+
+Notes -- Docker Bridge -> when install docker , docker create a virtual bridge on your hostmachine #docker0
+ 
+      -- IP Assignment: Docker’s internal DHCP service assigns a private IP address (usually in the 172.17.x.x range) to the container’s eth0 interface.
+
+      -- Port mapping : -p 8080:80 -> Docker creates an iptables DNAT rule // traffic hitting the host 8080 is automatically redirected to container's private IP at port 80
+
+     
+
+! Docker Network Flow                                 # virtual ethernet - when you run or start container a veth is create for connection 
+
+  eth0     -----        docker0              -----      veth(any number)        -----     container's eth0       
+ 
+Host Nic        virtual Bridge on you VM               connect to container's            use to connect veth
+                     ( 172.17.0.1 )                           eth0
+
+
+# to create  
+
+   docker network create -d bridge < Name >
+
+   # ifconfig // Check one br-network_id interface is created       //  docker network ls
+
+
+# after creating bridge it will get diff ip range - like ( 172.18.0.1)
+
+# if you have two virtual bridge 
+
+docker0     - 172.17.0.1    
+burn-brigde - 172.18.0.1
+
+so inside their container cant talk / communicate each other 
+
+so you have to use port mapping do communication below is flow :-
+
+
+container(172.17:port) -- docker0  - host_machine - burn_bridge -- container(172.18:port)
+
+
+# IF you create a custom network in container DNS is default ENABLE  //  Disable default for default Network
+
+
+
+## Host Network
+
+/ cmd = docker run -itd --network=host nginx 
+
+Use host_machine network to connectivity
+
+- NET Namespaces not use here  // all Namespaces use to for isolate the container but network not use to isolate it use hostmachine
+
+- Create a nginx container and it will connect by browser using host IP
+
+
+## None Network
+
+/ docker run -itd --network=none nginx
+
+container without any connectivity // it will completly islocated
+
+
+## Multi-Network Connect to Single Container
+
+
+1st - default 
+
+running container /cmd  -> docker network connect network_id container_id  
+
+                  /cmd  -> docker network disconnect network_id container_iD
+
+# Note - if network is NONE u cant attach the second network to that container 
+
+
+## Remove Network
+
+/cmd = docker network rm network_id
+
+
+
+############### ->   Registry
+
+# Note -> registry only support https
+
+# install
+
+# default port = 5000
+
+Unsecure Registry
+
+/- cmd : docker pull registry  &&  docker run -itd --name local_registry -p 5000:5000 registry
+
+# push & pull image -> 
+
+
+tag - docker image tag cnt1 127.0.0.1:5000/cnt1:latest
+
+to push -> docker push 127.0.0.1:5000/cnt1:latest
+
+to pull -> docker pull 127.0.0.1:5000/cnt1:latest
+
+
+# To check all images
+ 
+- curl http://127.0.0.1:6000/v2/_catalog
+
+- curl -X GET http://127.0.0.1:6000/v2/_catalog
+
+   Output  = {"repositories":["cnt1","httpd","ub","web"]}
+
+# to check specific version
+
+- curl localhost:6000/v2/web/tags/list       # web = image_name 
+ 
+   Output  = {"name":"web","tags":["7"]}
+
+
+### Secure Registry
+
+
+mkdit certs
+
+openssl req -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key -x509 -days 365 -out certs/domain.crt
+
+# comman name - myregistry.local
+
+mkdir /etc/docker/certs.d/myregistry.local:5000/
+
+cp certs/domain.crt domain.key /etc/docker/certs.d/myregistry.local:5000/
+
+systemctl restart docker
+
+
+docker run -itd --name secure_registry -p 5000:5000 -v certs:/certs -e  REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key registry
+
+curl --cacert certs/domain.crt https://myregistry.local:5000/v2/_catalog
+
+docker tag cnt1:v4ssh myregistry.local:5000/cn1:ssh
+
+docker push myregistry.local:5000/cn1:ssh
+
+
+### Authentication with security
+
+mkdir auth
+
+docker run --rm \
+  --entrypoint htpasswd \
+  httpd:2 -Bbn admin your_password > auth/htpasswd
+
+
+docker run -d \
+  -p 5000:5000 \
+  --restart=always \
+  --name secure-registry \
+  -v "$(pwd)"/certs:/certs \
+  -v "$(pwd)"/auth:/auth \
+  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+  -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+  -e REGISTRY_AUTH=htpasswd \
+  -e REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm" \
+  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
+  registry
+
+
+docker login myregistry.local:5000     # login 
+
+curl --cacert ssl/domain.crt -u admin:your_password https://myregistry.local:5000/v2/_catalog    # to check 
+
+
+###### build
+
+docker builder prune         # to delete all caches 
+
+docker build --no-cache -t my_new_image .      # for specific
+
